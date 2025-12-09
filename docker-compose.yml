@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app/backend
+      - ./ml:/app/ml
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dashboard
+    ports:
+      - "8501:8501"
+    depends_on:
+      - backend
+    environment:
+      - API_URL=http://backend:8000/api
+    volumes:
+      - ./dashboard:/app/dashboard
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./configs/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.ignored-mount-points'
+      - "^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)"
+    ports:
+      - "9100:9100"
+
+  osquery:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.osquery
+    container_name: osquery-agent
+    privileged: true
+    volumes:
+      - ./configs/osquery.conf:/etc/osquery/osquery.conf
+      - /var/run/docker.sock:/var/run/docker.sock
+    pid: host
+    restart: always
+
+  # Optional Simulator to keep sending traffic to the backend automatically
+  traffic-simulator:
+    image: python:3.10-slim
+    volumes:
+      - ./notebooks:/app/notebooks
+    command: >
+      sh -c "pip install requests numpy && python -u /app/notebooks/traffic_gen.py"
+    depends_on:
+      - backend

@@ -1,0 +1,14 @@
+FROM ubuntu:22.04
+
+RUN apt-get update && apt-get install -y wget gnupg2
+
+# Install osquery
+RUN export OSQUERY_KEY=1484120AC4E9F8A1A577AEEE97A80C63C9D8B80B && \
+    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys $OSQUERY_KEY && \
+    echo "deb [arch=amd64] https://pkg.osquery.io/deb deb main" | tee /etc/apt/sources.list.d/osquery.list && \
+    apt-get update && \
+    apt-get install -y osquery
+
+COPY configs/osquery.conf /etc/osquery/osquery.conf
+
+CMD ["osqueryd", "--config_path=/etc/osquery/osquery.conf", "--verbose"]
