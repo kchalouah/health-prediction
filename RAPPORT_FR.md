@@ -9,37 +9,35 @@
 ## 1. Introduction
 Ce projet vise à développer une solution proactive de cybersécurité capable de prédire l'état de santé et les risques de sécurité des terminaux (endpoints). Contrairement aux antivirus traditionnels réactifs, notre système utilise l'apprentissage automatique (Machine Learning) pour analyser les comportements anormaux (CPU, Disque, Réseau) et anticiper les compromissions avant qu'elles ne deviennent critiques.
 
-## 2. Architecture du Système
-Le système repose sur une architecture moderne de micro-services conteneurisés via Docker.
+## 2. Architecture du Système (v2.0)
+Le système repose sur une architecture de micro-services évoluée.
 
 ### Composants Principaux :
-1.  **Backend (FastAPI)** :
-    *   Sert d'API centrale pour l'ingestion des métriques.
-    *   Héberge le moteur ML pour l'inférence en temps réel.
-    *   Expose les métriques au format Prometheus (`/metrics`).
-2.  **Dashboard (Streamlit)** :
-    *   Interface utilisateur interactive.
-    *   Visualise les scores de santé, les graphiques de tendance et les alertes de sécurité.
-3.  **Machine Learning Engine** :
-    *   Utilise un modèle **Random Forest** (Forêt Aléatoire).
-    *   Entraîné sur des données synthétiques simulant des comportements sains vs attaques (Ransomware, Cryptomining).
-4.  **Monitoring & Simulation** :
-    *   **Prometheus** : Base de données temporelle pour stocker les métriques.
-    *   **Node Exporter** : Collecte les métriques réelles de l'hôte Docker.
-    *   **Traffic Simulator** : Script Python générant automatiquement du trafic normal et malveillant pour la démonstration.
+1.  **Backend Intelligent** :
+    *   **FastAPI** + **APScheduler** pour la collecte et l'analyse temps-réel (5s).
+    *   **SQLite** pour la persistance des incidents et l'historique.
+    *   **Osquery Integration** pour l'analyse forensique des logs système.
+2.  **Dashboard Premium (Streamlit)** :
+    *   Interface à onglets : Vue d'ensemble, Alertes, Rapports.
+    *   Export CSV des incidents pour la conformité.
+    *   Visualisations avancées : Heatmaps CPU/RAM, Matrice de Risque.
+3.  **Moteur ML Tri-Modèle** :
+    *   **XGBoost** : Classification supervisée des risques connus.
+    *   **Isolation Forest** : Détection non-supervisée des zéros-days (Anomalies).
+    *   **LSTM (PyTorch)** : Réseau de neurones récurrent pour la prédiction de tendances futures.
 
 ## 3. Méthodologie Technique
 
-### 3.1 Génération de Données (Synthetic Data)
-Faute de dataset public contenant des métriques "live" exploitables pour une démo temps réel, nous avons créé un générateur de données (`ml/engine.py`) :
-*   **Normal** : CPU ~25%, RAM ~40%, Processus ~100.
-*   **Attaque** : CPU >85%, Disque >80% (simulant un chiffrement ou minage).
+### 3.1 Ingénierie des Fonctionnalités (Feature Engineering)
+Les données brutes ne suffisent pas. Nous calculons des "fenêtres glissantes" sur 1 heure :
+*   `cpu_mean_1h`, `cpu_std_1h` : Pour détecter la volatilité.
+*   `usage_trend` : La pente de la courbe d'utilisation (détection de fuite mémoire).
 
-### 3.2 Modèle Prédictif
-Nous avons choisi un classifieur **Random Forest** pour sa robustesse et sa capacité à gérer des relations non linéaires entre les métriques système.
-*   **Features** : `cpu_usage`, `memory_usage`, `disk_io`, `network_traffic`, `file_changes`.
-*   **Target** : `0` (Sain) ou `1` (Compromis).
-*   **Score de Risque** : Probabilité prédite par le modèle (0.0 à 1.0).
+### 3.2 Stratégie Multi-Modèles
+Contrairement aux approches classiques (un seul modèle), nous combinons trois signaux :
+*   **Le Risque (Probabilité)** : Calculé par XGBoost sur des patterns d'attaque connus (Ransomware, Mining).
+*   **L'Anomalie (Booléen)** : Si Isolation Forest détecte un point "bizarre" (outlier), on lève une alerte "Warning" même si le risque est bas.
+*   **La Prévision** : LSTM anticipe si le score de santé va chuter, permettant une intervention *avant* l'incident.
 
 ## 4. Guide de Démarrage
 Le projet a été conçu pour être déployé en une seule commande grâce à Docker Compose.

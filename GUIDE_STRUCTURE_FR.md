@@ -3,17 +3,21 @@
 Ce document détaille le rôle de chaque dossier et fichier clé du projet pour vous aider à comprendre l'architecture globale.
 
 ## 📂 /backend
-Le "cerveau" du système. C'est une API FastAPI.
-*   **`main.py`** : Le point d'entrée. Il reçoit les données (`POST /api/metrics`), appelle le modèle ML pour une prédiction, et stocke l'état. Il expose aussi les métriques pour Prometheus.
-*   **`Dockerfile`** : Instructions pour construire l'image Docker du backend.
+Le cœur fonctionnel de l'application (API + Logique).
+*   **`main.py`** : Point d'entrée FastAPI. Gère les routes API, le scheduler (APScheduler), et expose les métriques Prometheus.
+*   **`collector.py`** : Collecte les métriques système (CPU, RAM, GPU, Réseau) via `psutil`.
+*   **`security_mon.py`** : Surveille les logs d'Osquery (`/var/log/osquery`) pour détecter les processus suspects.
+*   **`database.py`** : Modèles SQLAlchemy pour la persistance des alertes et métriques dans `endpoint.db` (SQLite).
 
 ## 📂 /ml
-Le moteur d'intelligence artificielle.
-*   **`engine.py`** : 
-    1.  Génère des données synthétiques (CPU/RAM normaux vs attaque).
-    2.  Entraîne le modèle Random Forest (`train_model`).
-    3.  Fait les prédictions en temps réel (`predict`).
-*   **`security_model.joblib`** : Le fichier du modèle entraîné (généré automatiquement).
+Le moteur d'intelligence artificielle avancé.
+*   **`models.py`** : Contient les 3 modèles :
+    1.  **RiskClassifier** (XGBoost) : Pour le score de compromission.
+    2.  **AnomalyDetector** (Isolation Forest) : Pour les menaces inconnues.
+    3.  **HealthForecaster** (LSTM) : Pour la prédiction de tendance.
+*   **`feature_engine.py`** : Transforme les données brutes en indicateurs temporels (moyennes glissantes, tendances).
+*   **`health_scorer.py`** : Logique métier pour calculer le Score de Santé (0-100) et générer des recommandations.
+*   **`train.py`** : Script d'entraînement automatisé (génération de données synthétiques + fit des modèles).
 
 ## 📂 /dashboard
 L'interface utilisateur visuelle.

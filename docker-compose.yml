@@ -10,6 +10,7 @@ services:
     volumes:
       - ./backend:/app/backend
       - ./ml:/app/ml
+      - osquery-logs:/var/log/osquery # Read logs from here
 
   dashboard:
     build:
@@ -56,6 +57,7 @@ services:
     volumes:
       - ./configs/osquery.conf:/etc/osquery/osquery.conf
       - /var/run/docker.sock:/var/run/docker.sock
+      - osquery-logs:/var/log/osquery # Write logs here
     pid: host
     restart: always
 
@@ -68,3 +70,6 @@ services:
       sh -c "pip install requests numpy && python -u /app/notebooks/traffic_gen.py"
     depends_on:
       - backend
+
+volumes:
+  osquery-logs:
