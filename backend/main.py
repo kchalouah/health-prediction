@@ -34,6 +34,8 @@ metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
 HEALTH_GAUGE = Gauge('endpoint_health_score', 'Overall Health Score', ['endpoint_id'])
 RISK_GAUGE = Gauge('endpoint_risk_prob', 'Risk Probability', ['endpoint_id'])
+CPU_GAUGE = Gauge('endpoint_cpu_usage', 'CPU Usage %', ['endpoint_id'])
+MEMORY_GAUGE = Gauge('endpoint_memory_usage', 'Memory Usage %', ['endpoint_id'])
 
 # State
 state = {
@@ -82,11 +84,14 @@ def monitor_loop():
             
         session.commit()
         
-        # 4. Feature Extraction
+        # 3. Calculate Features
         feature_engine = FeatureEngine(session)
         features_df = feature_engine.extract_features(endpoint_id)
         
-        # 5. Inference
+        # Ensure numeric types for XGBoost
+        features_df = features_df.astype(float)
+        
+        # 4. Inference
         risk_prob = risk_clf.predict_risk(features_df)
         is_anomaly = anomaly_det.is_anomaly(features_df)
         trend = forecaster.forecast_trend(features_df)
@@ -129,6 +134,8 @@ def monitor_loop():
         # Prometheus
         HEALTH_GAUGE.labels(endpoint_id=endpoint_id).set(health_score)
         RISK_GAUGE.labels(endpoint_id=endpoint_id).set(risk_prob)
+        CPU_GAUGE.labels(endpoint_id=endpoint_id).set(raw_metrics.get("cpu_usage", 0))
+        MEMORY_GAUGE.labels(endpoint_id=endpoint_id).set(raw_metrics.get("memory_usage", 0))
         
     except Exception as e:
         logging.error(f"Monitor loop failed: {e}")
@@ -167,7 +174,7 @@ async def receive_metrics(payload: MetricsPayload):
         "cpu_stress_ratio": 1.0 if payload.cpu_usage > 80 else 0.0
     }
     
-    df = pd.DataFrame([features])
+    df = pd.DataFrame([features]).astype(float)
     
     # 2. Inference
     risk_prob = risk_clf.predict_risk(df)
@@ -217,6 +224,8 @@ async def receive_metrics(payload: MetricsPayload):
     # Update Prometheus Metrics
     HEALTH_GAUGE.labels(endpoint_id=payload.endpoint_id).set(health_score)
     RISK_GAUGE.labels(endpoint_id=payload.endpoint_id).set(risk_prob)
+    CPU_GAUGE.labels(endpoint_id=payload.endpoint_id).set(payload.cpu_usage)
+    MEMORY_GAUGE.labels(endpoint_id=payload.endpoint_id).set(payload.memory_usage)
         
     return result
 

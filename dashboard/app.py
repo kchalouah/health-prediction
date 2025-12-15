@@ -73,7 +73,7 @@ while True:
                 data=csv,
                 file_name=f"security_incidents_{int(time.time())}.csv",
                 mime="text/csv",
-                key="download-csv"
+                key=f"download-csv_{int(time.time())}"
             )
             
             st.dataframe(df_alerts)
